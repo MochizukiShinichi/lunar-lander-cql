@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+d3rlpy_logs/
+*.zip
+smoke_test*
+full_pipe_smoke_test.py
+test_d3rlpy.py
+test_cql.py
+# We keep .h5 and .d3 files in case you want others to have the data/models
+# but if they are >100MB, you might need to ignore them or use Git LFS.
