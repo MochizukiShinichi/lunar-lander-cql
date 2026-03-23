@@ -125,6 +125,42 @@
     </p>
 </section>
 
+<section id="appendix">
+    <h2>Appendix: Experiment Setup</h2>
+    <div style="font-size: 0.95em; color: #444;">
+        <h3>1. Environment</h3>
+        <p>
+            The experiment was conducted using <strong>Gymnasium's LunarLander-v3</strong>. This is a classic "box2d" control task where the agent must land a craft on a designated pad using three engines (Main, Left, Right).
+        </p>
+
+        <h3>2. Dataset Generation</h3>
+        <p>Three datasets were generated using <strong>Stable-Baselines3 (PPO)</strong> to simulate different levels of expertise:</p>
+        <ul>
+            <li><strong>Expert:</strong> PPO agent trained to convergence (500,000 steps, average reward > 200).</li>
+            <li><strong>Medium:</strong> A snapshot of the PPO agent's behavior at only 50,000 steps (early learning phase).</li>
+            <li><strong>Random:</strong> Actions sampled uniformly from the discrete action space.</li>
+        </ul>
+        <p>Each dataset contains exactly <strong>50,000 transitions</strong> (state, action, reward, next state).</p>
+
+        <h3>3. Training Details</h3>
+        <p>
+            The offline agents were trained using the <strong>Conservative Q-Learning (CQL)</strong> implementation from the <code>d3rlpy</code> library (v2.8.0).
+        </p>
+        <ul>
+            <li><strong>Steps:</strong> 30,000 gradient steps per model.</li>
+            <li><strong>Architecture:</strong> Standard MLP (Multi-Layer Perceptron) encoder.</li>
+            <li><strong>Hyperparameters:</strong> Default <code>DiscreteCQLConfig</code> settings (Learning Rate: 6.25e-5, Alpha: 1.0, Batch Size: 32).</li>
+            <li><strong>Hardware:</strong> Training performed on CPU for cross-platform reproducibility.</li>
+        </ul>
+
+        <h3>4. Evaluation Methodology</h3>
+        <p>
+            Each trained model was evaluated over <strong>50 test episodes</strong>. Success was defined as a final cumulative reward &ge; 200. 
+            The simulation videos include a <strong>boundary check</strong>: if the agent flies significantly off-screen (e.g., y > 1.2 or |x| > 1.1), the episode is terminated early to keep the visualization focused on the landing area.
+        </p>
+    </div>
+</section>
+
 <footer>
     <p style="text-align: center; color: #7f8c8d; font-size: 0.9em;">Generated on March 22, 2026</p>
 </footer>
