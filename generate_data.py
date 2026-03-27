@@ -71,16 +71,16 @@ def main():
 
     print("Collecting Medium Dataset...")
     medium_model = PPO.load("medium_ppo")
-    medium_dataset = collect_data(medium_model, env_id, n_steps=50000)
+    medium_dataset = collect_data(medium_model, env_id, n_steps=500000)
     medium_dataset.dump("medium_dataset.h5")
 
     print("Collecting Expert Dataset...")
     expert_model = PPO.load("expert_ppo")
-    expert_dataset = collect_data(expert_model, env_id, n_steps=50000)
+    expert_dataset = collect_data(expert_model, env_id, n_steps=500000)
     expert_dataset.dump("expert_dataset.h5")
 
     print("Collecting Random Dataset...")
-    random_dataset = collect_data(None, env_id, n_steps=50000, is_random=True)
+    random_dataset = collect_data(None, env_id, n_steps=500000, is_random=True)
     random_dataset.dump("random_dataset.h5")
         
     print("Data collection complete!")

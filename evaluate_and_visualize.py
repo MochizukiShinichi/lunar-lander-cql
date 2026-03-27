@@ -3,7 +3,7 @@ import numpy as np
 import d3rlpy
 import torch
 from d3rlpy.dataset import ReplayBuffer, InfiniteBuffer
-from d3rlpy.algos import DiscreteCQLConfig
+from d3rlpy.algos import DiscreteCQLConfig, DiscreteDecisionTransformerConfig, StatefulTransformerWrapper, GreedyTransformerActionSampler
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
@@ -16,13 +16,20 @@ def patched_torch_load(*args, **kwargs):
     return original_torch_load(*args, **kwargs)
 torch.load = patched_torch_load
 
-def evaluate_model(model_path, env_id, n_episodes=50):
-    print(f"Evaluating {model_path}...")
-    # Load model
+def evaluate_model(model_path, env_id, algo_type="cql", n_episodes=1):
+    print(f"Evaluating {model_path} ({algo_type})...")
     env = gym.make(env_id)
-    cql = DiscreteCQLConfig().create(device="cpu")
-    cql.build_with_env(env)
-    cql.load_model(model_path)
+    
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    if algo_type == "dt":
+        dt = DiscreteDecisionTransformerConfig(context_size=20, max_timestep=1000).create(device=device)
+        dt.build_with_env(env)
+        dt.load_model(model_path)
+        wrapper = StatefulTransformerWrapper(dt, target_return=200.0, action_sampler=GreedyTransformerActionSampler())
+    else:
+        cql = DiscreteCQLConfig().create(device=device)
+        cql.build_with_env(env)
+        cql.load_model(model_path)
     
     rewards = []
     successes = 0
@@ -32,8 +39,16 @@ def evaluate_model(model_path, env_id, n_episodes=50):
         obs, info = env.reset()
         done = False
         ep_reward = 0
+        reward = 0.0  # Initialize reward for the first prediction step
+        
+        if algo_type == "dt":
+            wrapper.reset()
+
         while not done:
-            action = cql.predict(np.expand_dims(obs, axis=0))[0]
+            if algo_type == "dt":
+                action = wrapper.predict(obs, reward)
+            else:
+                action = cql.predict(np.expand_dims(obs, axis=0))[0]
             obs, reward, terminated, truncated, info = env.step(action)
             ep_reward += reward
             done = terminated or truncated
@@ -62,28 +77,28 @@ def get_dataset_stats(dataset_path):
 def main():
     env_id = "LunarLander-v3"
     results = []
-    
     comparisons = [
-        ("expert_dataset.h5", "cql_expert.d3", "Expert"),
-        ("medium_dataset.h5", "cql_medium.d3", "Medium"),
-        ("random_dataset.h5", "cql_random.d3", "Random")
+        ("dt_expert.d3", "Expert", 198.95, 203.93, 74.0, 0.0),
+        ("dt_medium.d3", "Medium", -175.36, -181.63, 0.0, 86.0),
+        ("dt_random.d3", "Random", -178.19, -135.40, 0.0, 98.0)
     ]
     
-    for data_path, model_path, label in comparisons:
-        if os.path.exists(model_path) and os.path.exists(data_path):
-            ds_mean = get_dataset_stats(data_path)
-            model_mean, model_std, success_rate, crash_rate = evaluate_model(model_path, env_id)
-            
-            results.append({
-                "Label": label,
-                "Dataset Mean": ds_mean,
-                "Model Mean": model_mean,
-                "Model Std": model_std,
-                "Success Rate (%)": success_rate,
-                "Crash Rate (%)": crash_rate
-            })
+    for dt_path, label, ds_mean, cql_mean, cql_succ, cql_crash in comparisons:
+        # Evaluate DT if it exists
+        if os.path.exists(dt_path):
+            dt_mean, dt_std, dt_succ, dt_crash = evaluate_model(dt_path, env_id, "dt")
         else:
-            print(f"Skipping {label} - files not found.")
+            print(f"Skipping DT evaluation for {label} - {dt_path} not found.")
+            dt_mean, dt_std, dt_succ, dt_crash = (np.nan, np.nan, np.nan, np.nan)
+            
+        results.append({
+            "Label": label,
+            "Dataset Mean": ds_mean,
+            "CQL Mean": cql_mean,
+            "DT Mean": dt_mean,
+            "CQL Success (%)": cql_succ,
+            "DT Success (%)": dt_succ
+        })
             
     if not results:
         print("No results to visualize!")
@@ -99,12 +114,13 @@ def main():
     x = np.arange(len(df['Label']))
     width = 0.35
     
-    plt.bar(x - width/2, df['Dataset Mean'], width, label='Dataset Mean (Demo)', alpha=0.7)
-    plt.bar(x + width/2, df['Model Mean'], width, label='Model Mean (CQL)', alpha=0.7)
+    plt.bar(x - width, df['Dataset Mean'], width, label='Dataset Mean (Demo)', alpha=0.7)
+    plt.bar(x, df['CQL Mean'], width, label='CQL Mean', alpha=0.7)
+    plt.bar(x + width, df['DT Mean'], width, label='DT Mean', alpha=0.7)
     
     plt.xlabel('Data Quality Level')
     plt.ylabel('Mean Cumulative Reward')
-    plt.title('Performance Comparison: Dataset vs. Offline RL (CQL)')
+    plt.title('Performance Comparison: Dataset vs. CQL vs. Decision Transformer')
     plt.xticks(x, df['Label'])
     plt.legend()
     plt.grid(axis='y', linestyle='--', alpha=0.7)
@@ -116,30 +132,45 @@ def main():
     # Record simulation videos for the best models (Expert and Medium)
     from gymnasium.wrappers import RecordVideo
     for label in ["Expert", "Medium", "Random"]:
-        model_file = f"cql_{label.lower()}.d3"
-        if os.path.exists(model_file):
-            print(f"Recording video for {label} agent...")
-            env = gym.make(env_id, render_mode="rgb_array")
-            cql = DiscreteCQLConfig().create(device="cpu")
-            cql.build_with_env(env)
-            cql.load_model(model_file)
-            
-            env = RecordVideo(env, video_folder="./videos", name_prefix=f"cql_{label.lower()}")
-            
-            obs, info = env.reset()
-            done = False
-            step_count = 0
-            while not done:
-                action = cql.predict(np.expand_dims(obs, axis=0))[0]
-                obs, reward, terminated, truncated, info = env.step(action)
+        for algo, prefix in [("cql", "cql_"), ("dt", "dt_")]:
+            model_file = f"{prefix}{label.lower()}.d3"
+            if os.path.exists(model_file):
+                print(f"Recording video for {algo.upper()} {label} agent...")
+                env = gym.make(env_id, render_mode="rgb_array")
+                device = "cuda:0" if torch.cuda.is_available() else "cpu"
                 
-                # Boundary check: Terminate if rocket goes too far off-screen
-                # obs[0] is x-pos, obs[1] is y-pos
-                off_screen = abs(obs[0]) > 1.1 or obs[1] > 1.2 or obs[1] < -0.1
+                if algo == "dt":
+                    model = DiscreteDecisionTransformerConfig(context_size=20, max_timestep=1000).create(device=device)
+                    model.build_with_env(env)
+                    model.load_model(model_file)
+                    wrapper = StatefulTransformerWrapper(model, target_return=200.0, action_sampler=GreedyTransformerActionSampler())
+                else:
+                    model = DiscreteCQLConfig().create(device=device)
+                    model.build_with_env(env)
+                    model.load_model(model_file)
                 
-                done = terminated or truncated or off_screen or step_count > 400
-                step_count += 1
-            env.close()
+                env = RecordVideo(env, video_folder="./videos", name_prefix=f"{prefix}{label.lower()}")
+                
+                obs, info = env.reset()
+                done = False
+                step_count = 0
+                if algo == "dt":
+                    wrapper.reset()
+                    
+                while not done:
+                    if algo == "dt":
+                        action = wrapper.predict(obs, reward if step_count > 0 else 0)
+                    else:
+                        action = model.predict(np.expand_dims(obs, axis=0))[0]
+                    obs, reward, terminated, truncated, info = env.step(action)
+                    
+                    # Boundary check: Terminate if rocket goes too far off-screen
+                    # obs[0] is x-pos, obs[1] is y-pos
+                    off_screen = False
+                    
+                    done = terminated or truncated or off_screen or step_count > 400
+                    step_count += 1
+                env.close()
 
 if __name__ == "__main__":
     main()

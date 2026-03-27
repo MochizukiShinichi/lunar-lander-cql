@@ -29,13 +29,13 @@
 
 <header>
     <h1>Lunar Lander Offline RL</h1>
-    <p>Investigating the impact of demonstration data quality on Conservative Q-Learning (CQL)</p>
+    <p>Investigating the impact of demonstration data quality on Decision Transformer</p>
 </header>
 
 <section id="abstract">
     <h2>Abstract</h2>
     <p>
-        This experiment evaluates how the quality of demonstration data affects an <strong>Offline Reinforcement Learning</strong> agent using the <strong>Conservative Q-Learning (CQL)</strong> algorithm. 
+        This experiment evaluates how the quality of demonstration data affects <strong>Offline Reinforcement Learning</strong> agents, comparing the MLP-based <strong>Conservative Q-Learning (CQL)</strong> and the Sequence-based <strong>Decision Transformer (DT)</strong> algorithms. 
         Unlike standard Reinforcement Learning which learns by trial and error, Offline RL learns exclusively from a fixed dataset. 
         We compared three data levels: <strong>Expert</strong> (fully trained), <strong>Medium</strong> (partially trained), and <strong>Random</strong> (untrained).
     </p>
@@ -49,9 +49,10 @@
             <tr>
                 <th>Data Quality</th>
                 <th>Dataset Mean Reward</th>
-                <th>CQL Model Mean Reward</th>
-                <th>Success Rate (%)</th>
-                <th>Crash Rate (%)</th>
+                <th>CQL Mean Reward</th>
+                <th>DT Mean Reward</th>
+                <th>CQL Success Rate (%)</th>
+                <th>DT Success Rate (%)</th>
             </tr>
         </thead>
         <tbody>
@@ -59,22 +60,25 @@
                 <td><span class="badge badge-expert">Expert</span></td>
                 <td>198.95</td>
                 <td><strong>203.93</strong></td>
+                <td><strong>213.4</strong></td>
                 <td>74.0%</td>
-                <td>0.0%</td>
+                <td><strong>84.0%</strong></td>
             </tr>
             <tr>
                 <td><span class="badge badge-medium">Medium</span></td>
                 <td>-175.36</td>
                 <td>-181.63</td>
+                <td>-295.9</td>
                 <td>0.0%</td>
-                <td>86.0%</td>
+                <td>0.0%</td>
             </tr>
             <tr>
                 <td><span class="badge badge-random">Random</span></td>
                 <td>-178.19</td>
                 <td><strong>-135.40</strong></td>
+                <td>-136.5</td>
                 <td>0.0%</td>
-                <td>98.0%</td>
+                <td>0.0%</td>
             </tr>
         </tbody>
     </table>
@@ -89,29 +93,58 @@
     <h2>Simulation Videos</h2>
     <p>Visual behavior of the trained agents in the LunarLander-v3 environment.</p>
     <div class="grid">
+        <!-- Expert Videos -->
         <div class="video-card">
-            <h3>Expert-Trained Agent</h3>
+            <h3>Expert: CQL Agent</h3>
             <video controls>
                 <source src="videos/cql_expert-episode-0.mp4" type="video/mp4">
                 Your browser does not support the video tag.
             </video>
-            <p>Smooth, controlled descent and precise landing.</p>
+            <p>Original MLP CQL Expert landing.</p>
         </div>
         <div class="video-card">
-            <h3>Medium-Trained Agent</h3>
+            <h3>Expert: Decision Transformer</h3>
+            <video controls>
+                <source src="videos/dt_expert-episode-0.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+            <p>Transformer Expert landing behavior.</p>
+        </div>
+
+        <!-- Medium Videos -->
+        <div class="video-card">
+            <h3>Medium: CQL Agent</h3>
             <video controls>
                 <source src="videos/cql_medium-episode-0.mp4" type="video/mp4">
                 Your browser does not support the video tag.
             </video>
-            <p>Understands descent but lacks fine control for landing.</p>
+            <p>Original MLP CQL Medium behavior.</p>
         </div>
         <div class="video-card">
-            <h3>Random-Trained Agent</h3>
+            <h3>Medium: Decision Transformer</h3>
+            <video controls>
+                <source src="videos/dt_medium-episode-0.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+            <p>Transformer Medium behavior.</p>
+        </div>
+
+        <!-- Random Videos -->
+        <div class="video-card">
+            <h3>Random: CQL Agent</h3>
             <video controls>
                 <source src="videos/cql_random-episode-0.mp4" type="video/mp4">
                 Your browser does not support the video tag.
             </video>
-            <p>Demonstrates basic engine firing but ultimately crashes.</p>
+            <p>Original MLP CQL Random behavior.</p>
+        </div>
+        <div class="video-card">
+            <h3>Random: Decision Transformer</h3>
+            <video controls>
+                <source src="videos/dt_random-episode-0.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+            <p>Transformer Random behavior.</p>
         </div>
     </div>
 </section>
@@ -119,9 +152,7 @@
 <section id="conclusion">
     <h2>Conclusion</h2>
     <p>
-        The results demonstrate that while <strong>Expert Data</strong> yields the best results, CQL is capable of extracting meaningful signals even from <strong>Random Data</strong>, 
-        improving the mean reward significantly over the training trajectories (-135 vs -178). 
-        However, for complex tasks like landing, the "stitching" capability of CQL requires higher density or higher quality transitions to achieve a 100% success rate.
+        The results demonstrate how <strong>Decision Transformer</strong> leverages the demonstration data. Unlike CQL, Decision Transformer formulates RL as a sequence modeling problem.
     </p>
 </section>
 
@@ -144,12 +175,11 @@
 
         <h3>3. Training Details</h3>
         <p>
-            The offline agents were trained using the <strong>Conservative Q-Learning (CQL)</strong> implementation from the <code>d3rlpy</code> library (v2.8.0).
+            The offline agents were trained using the <strong>Conservative Q-Learning (CQL)</strong> and <strong>Decision Transformer (DT)</strong> implementation from the <code>d3rlpy</code> library.
         </p>
         <ul>
             <li><strong>Steps:</strong> 30,000 gradient steps per model.</li>
-            <li><strong>Architecture:</strong> Standard MLP (Multi-Layer Perceptron) encoder.</li>
-            <li><strong>Hyperparameters:</strong> Default <code>DiscreteCQLConfig</code> settings (Learning Rate: 6.25e-5, Alpha: 1.0, Batch Size: 32).</li>
+            <li><strong>Architecture:</strong> DiscreteDecisionTransformer (context_size=20, max_timestep=1000) vs DiscreteCQLConfig (MLP default).</li>
             <li><strong>Hardware:</strong> Training performed on CPU for cross-platform reproducibility.</li>
         </ul>
 
