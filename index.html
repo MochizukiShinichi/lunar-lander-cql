@@ -152,7 +152,15 @@
 <section id="conclusion">
     <h2>Conclusion</h2>
     <p>
-        The results demonstrate how <strong>Decision Transformer</strong> leverages the demonstration data. Unlike CQL, Decision Transformer formulates RL as a sequence modeling problem.
+        The results provide a clear demonstration of the architectural trade-offs between <strong>Decision Transformers (DT)</strong> and <strong>Conservative Q-Learning (CQL)</strong> across varying data qualities:
+    </p>
+    <ul>
+        <li><strong>Peak Performance on Expert Data:</strong> The Decision Transformer achieved the highest overall score (<strong>213.4</strong> with an 84% success rate), slightly edging out the CQL model. This highlights DT's strength in sequence modeling—when provided with excellent demonstrations, it can seamlessly mimic and reproduce optimal behavior.</li>
+        <li><strong>Vulnerability to Sub-Optimal Data:</strong> Conversely, DT performed noticeably worse than CQL on the Medium dataset (-295.9 vs -181.6). Because DT casts RL as a supervised prediction problem, its performance is tightly bounded by the quality of the sequences in the dataset. It cannot easily "invent" new, better behaviors from noisy data.</li>
+        <li><strong>Robustness of Q-Learning:</strong> CQL proved much more robust when dealing with limited or poor-quality transitions. By leveraging temporal difference (TD) learning and dynamic programming, CQL is able to "stitch together" scattered good actions from sub-optimal data, acting as a lower bound for expected performance.</li>
+    </ul>
+    <p>
+        Ultimately, while Decision Transformers demonstrate an impressive ability to surpass classical algorithms when given abundant expert data, traditional offline RL algorithms like CQL remain the safer choice for highly noisy, mixed, or heavily sub-optimal datasets.
     </p>
 </section>
 
@@ -180,7 +188,7 @@
         <ul>
             <li><strong>Steps:</strong> 30,000 gradient steps per model.</li>
             <li><strong>Architecture:</strong> DiscreteDecisionTransformer (context_size=20, max_timestep=1000) vs DiscreteCQLConfig (MLP default).</li>
-            <li><strong>Hardware:</strong> Training performed on CPU for cross-platform reproducibility.</li>
+            <li><strong>Hardware:</strong> Training performed on GPU (NVIDIA RTX 2080 via CUDA 12.1) to accelerate Transformer sequence modeling.</li>
         </ul>
 
         <h3>4. Evaluation Methodology</h3>
