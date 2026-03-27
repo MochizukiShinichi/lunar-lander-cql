@@ -199,6 +199,25 @@
     </div>
 </section>
 
+<section id="qa" style="margin-top: 30px; padding: 20px; background-color: #f4f6f8; border-radius: 8px;">
+    <h2>Q&A</h2>
+    
+    <div style="margin-bottom: 20px;">
+        <h3 style="color: #2c3e50;">Q: Why does the Decision Transformer perform so poorly on the Random/Medium datasets? Is it just undertrained?</h3>
+        <p><strong>A:</strong> No, it is not undertrained. The training logs confirm that the neural network fully converged. For instance, the cross-entropy loss for the random dataset quickly dropped to <code>1.24</code> and then completely flatlined for tens of thousands of steps. Because LunarLander has 4 discrete actions, a completely random baseline yields a cross-entropy loss of <code>-log(0.25) &approx; 1.386</code>. A loss of 1.24 indicates the model successfully learned whatever faint, predictable correlations existed in the random data, but hit a hard mathematical ceiling and converged to its maximum predictive capacity.</p>
+        <p>The failure is actually a fundamental limitation of the algorithmic concept. Decision Transformers formulate RL as a sequence modeling task (like predicting the next word), and condition actions on a "target return". If you ask DT to achieve a target return of <code>200.0</code> when the highest reward ever seen in a random dataset was <code>-50</code>, it is forced to extrapolate entirely out-of-distribution. It simply cannot invent sequences it hasn't seen.</p>
+    </div>
+
+    <div>
+        <h3 style="color: #2c3e50;">Q: Why is CQL far more robust on sub-optimal data than DT?</h3>
+        <p><strong>A:</strong> CQL's robustness comes from two major architectural differences:</p>
+        <ol>
+            <li><strong>Dynamic Programming ("Stitching"):</strong> Unlike DT, which only looks at whole intact sequences, CQL relies on the Bellman equation to learn the Temporal Difference (TD) value of individual state-to-state transitions. This allows CQL to "stitch" together one smart action from an otherwise terrible trajectory and another smart action from a different episode, allowing it to piece together a good overall policy from noisy data.</li>
+            <li><strong>Conservative Q-Penalties:</strong> Normal offline Q-learning networks tend to wildly overestimate the value of unseen actions, causing them to confidently fail. CQL mathematically penalizes the Q-values of actions outside the dataset distribution, forcing the agent to predictably stick to known safe paths. DT has no such mechanism to restrict dangerous extrapolation.</li>
+        </ol>
+    </div>
+</section>
+
 <footer>
     <p style="text-align: center; color: #7f8c8d; font-size: 0.9em;">Generated on March 22, 2026</p>
 </footer>
