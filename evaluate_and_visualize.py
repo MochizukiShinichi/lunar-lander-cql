@@ -16,7 +16,7 @@ def patched_torch_load(*args, **kwargs):
     return original_torch_load(*args, **kwargs)
 torch.load = patched_torch_load
 
-def evaluate_model(model_path, env_id, algo_type="cql", n_episodes=1):
+def evaluate_model(model_path, env_id, algo_type="cql", n_episodes=50):
     print(f"Evaluating {model_path} ({algo_type})...")
     env = gym.make(env_id)
     
@@ -25,7 +25,8 @@ def evaluate_model(model_path, env_id, algo_type="cql", n_episodes=1):
         dt = DiscreteDecisionTransformerConfig(context_size=20, max_timestep=1000).create(device=device)
         dt.build_with_env(env)
         dt.load_model(model_path)
-        wrapper = StatefulTransformerWrapper(dt, target_return=200.0, action_sampler=GreedyTransformerActionSampler())
+        tr = 200.0 if "expert" in model_path else (40.0 if "medium" in model_path else -100.0)
+        wrapper = StatefulTransformerWrapper(dt, target_return=tr, action_sampler=GreedyTransformerActionSampler())
     else:
         cql = DiscreteCQLConfig().create(device=device)
         cql.build_with_env(env)
@@ -143,7 +144,8 @@ def main():
                     model = DiscreteDecisionTransformerConfig(context_size=20, max_timestep=1000).create(device=device)
                     model.build_with_env(env)
                     model.load_model(model_file)
-                    wrapper = StatefulTransformerWrapper(model, target_return=200.0, action_sampler=GreedyTransformerActionSampler())
+                    tr = 200.0 if label == "Expert" else (40.0 if label == "Medium" else -100.0)
+                    wrapper = StatefulTransformerWrapper(model, target_return=tr, action_sampler=GreedyTransformerActionSampler())
                 else:
                     model = DiscreteCQLConfig().create(device=device)
                     model.build_with_env(env)
