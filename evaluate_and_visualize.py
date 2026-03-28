@@ -22,15 +22,11 @@ def evaluate_model(model_path, env_id, algo_type="cql", n_episodes=50):
     
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     if algo_type == "dt":
-        dt = DiscreteDecisionTransformerConfig(context_size=20, max_timestep=1000).create(device=device)
-        dt.build_with_env(env)
-        dt.load_model(model_path)
+        dt = d3rlpy.load_learnable(model_path, device=device)
         tr = 200.0 if "expert" in model_path else (40.0 if "medium" in model_path else -100.0)
         wrapper = StatefulTransformerWrapper(dt, target_return=tr, action_sampler=GreedyTransformerActionSampler())
     else:
-        cql = DiscreteCQLConfig().create(device=device)
-        cql.build_with_env(env)
-        cql.load_model(model_path)
+        cql = d3rlpy.load_learnable(model_path, device=device)
     
     rewards = []
     successes = 0
@@ -141,15 +137,11 @@ def main():
                 device = "cuda:0" if torch.cuda.is_available() else "cpu"
                 
                 if algo == "dt":
-                    model = DiscreteDecisionTransformerConfig(context_size=20, max_timestep=1000).create(device=device)
-                    model.build_with_env(env)
-                    model.load_model(model_file)
+                    model = d3rlpy.load_learnable(model_file, device=device)
                     tr = 200.0 if label == "Expert" else (40.0 if label == "Medium" else -100.0)
                     wrapper = StatefulTransformerWrapper(model, target_return=tr, action_sampler=GreedyTransformerActionSampler())
                 else:
-                    model = DiscreteCQLConfig().create(device=device)
-                    model.build_with_env(env)
-                    model.load_model(model_file)
+                    model = d3rlpy.load_learnable(model_file, device=device)
                 
                 env = RecordVideo(env, video_folder="./videos", name_prefix=f"{prefix}{label.lower()}")
                 

@@ -60,15 +60,15 @@
                 <td><span class="badge badge-expert">Expert</span></td>
                 <td>198.95</td>
                 <td><strong>203.93</strong></td>
-                <td><strong>243.6</strong></td>
+                <td><strong>244.2</strong></td>
                 <td>74.0%</td>
-                <td><strong>90.0%</strong></td>
+                <td><strong>92.0%</strong></td>
             </tr>
             <tr>
                 <td><span class="badge badge-medium">Medium</span></td>
                 <td>-175.36</td>
                 <td>-181.63</td>
-                <td><strong>-64.8</strong></td>
+                <td><strong>-61.3</strong></td>
                 <td>0.0%</td>
                 <td>0.0%</td>
             </tr>
@@ -76,7 +76,7 @@
                 <td><span class="badge badge-random">Random</span></td>
                 <td>-178.19</td>
                 <td><strong>-135.40</strong></td>
-                <td>-481.5</td>
+                <td>-462.1</td>
                 <td>0.0%</td>
                 <td>0.0%</td>
             </tr>
@@ -155,8 +155,8 @@
         The results provide a clear demonstration of the architectural trade-offs between <strong>Decision Transformers (DT)</strong> and <strong>Conservative Q-Learning (CQL)</strong> across varying data qualities:
     </p>
     <ul>
-        <li><strong>Peak Performance on Expert Data:</strong> The Decision Transformer achieved the highest overall score (<strong>243.6</strong> with a 90% success rate), easily beating the CQL model. This highlights DT's strength in sequence modeling—when provided with excellent demonstrations, it can seamlessly mimic and reproduce optimal behavior.</li>
-        <li><strong>Data-Bound Prediction Constraints:</strong> Conversely, DT's performance is strictly bounded by the maximum trajectory quality within its dataset. While the True Medium DT vastly improved to a score of -64.8 when correctly queried with a realistic <code>target_return</code>, the purely Random DT collapsed entirely (-481.5). Because DT predicts actions rather than values, it cannot easily "invent" better behaviors from noisy data.</li>
+        <li><strong>Peak Performance on Expert Data:</strong> The Decision Transformer achieved the highest overall score (<strong>244.2</strong> with a 92% success rate), easily beating the CQL model. This highlights DT's strength in sequence modeling—when provided with excellent demonstrations, it can seamlessly mimic and reproduce optimal behavior.</li>
+        <li><strong>Data-Bound Prediction Constraints:</strong> Conversely, DT's performance is strictly bounded by the maximum trajectory quality within its dataset. While the True Medium DT vastly improved to a score of -61.3 when correctly queried with a realistic <code>target_return</code>, the purely Random DT collapsed entirely (-462.1). Because DT predicts actions rather than values, it cannot easily "invent" better behaviors from noisy data.</li>
         <li><strong>Robustness of Q-Learning:</strong> CQL historically proves more robust when dealing with completely random or low-quality transitions. By leveraging temporal difference (TD) learning and dynamic programming, CQL can theoretically "stitch together" scattered good actions from sub-optimal data.</li>
     </ul>
     <p>
@@ -187,7 +187,7 @@
         </p>
         <ul>
             <li><strong>Steps:</strong> 30,000 gradient steps per model.</li>
-            <li><strong>Architecture:</strong> DiscreteDecisionTransformer (context_size=20, max_timestep=1000) vs DiscreteCQLConfig (MLP default).</li>
+            <li><strong>Architecture:</strong> DiscreteDecisionTransformer (context_size=50, max_timestep=1000, reward_scaler="standard") vs DiscreteCQLConfig (MLP default).</li>
             <li><strong>Hardware:</strong> Training performed on GPU (NVIDIA RTX 2080 via CUDA 12.1) to accelerate Transformer sequence modeling.</li>
         </ul>
 
