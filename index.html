@@ -155,9 +155,9 @@
         The results provide a clear demonstration of the architectural trade-offs between <strong>Decision Transformers (DT)</strong> and <strong>Conservative Q-Learning (CQL)</strong> across varying data qualities:
     </p>
     <ul>
-        <li><strong>Peak Performance on Expert Data:</strong> The Decision Transformer achieved the highest overall score (<strong>213.4</strong> with an 84% success rate), slightly edging out the CQL model. This highlights DT's strength in sequence modeling—when provided with excellent demonstrations, it can seamlessly mimic and reproduce optimal behavior.</li>
-        <li><strong>Vulnerability to Sub-Optimal Data:</strong> Conversely, DT performed noticeably worse than CQL on the Medium dataset (-295.9 vs -181.6). Because DT casts RL as a supervised prediction problem, its performance is tightly bounded by the quality of the sequences in the dataset. It cannot easily "invent" new, better behaviors from noisy data.</li>
-        <li><strong>Robustness of Q-Learning:</strong> CQL proved much more robust when dealing with limited or poor-quality transitions. By leveraging temporal difference (TD) learning and dynamic programming, CQL is able to "stitch together" scattered good actions from sub-optimal data, acting as a lower bound for expected performance.</li>
+        <li><strong>Peak Performance on Expert Data:</strong> The Decision Transformer achieved the highest overall score (<strong>243.6</strong> with a 90% success rate), easily beating the CQL model. This highlights DT's strength in sequence modeling—when provided with excellent demonstrations, it can seamlessly mimic and reproduce optimal behavior.</li>
+        <li><strong>Data-Bound Prediction Constraints:</strong> Conversely, DT's performance is strictly bounded by the maximum trajectory quality within its dataset. While the True Medium DT vastly improved to a score of -64.8 when correctly queried with a realistic <code>target_return</code>, the purely Random DT collapsed entirely (-481.5). Because DT predicts actions rather than values, it cannot easily "invent" better behaviors from noisy data.</li>
+        <li><strong>Robustness of Q-Learning:</strong> CQL historically proves more robust when dealing with completely random or low-quality transitions. By leveraging temporal difference (TD) learning and dynamic programming, CQL can theoretically "stitch together" scattered good actions from sub-optimal data.</li>
     </ul>
     <p>
         Ultimately, while Decision Transformers demonstrate an impressive ability to surpass classical algorithms when given abundant expert data, traditional offline RL algorithms like CQL remain the safer choice for highly noisy, mixed, or heavily sub-optimal datasets.
@@ -176,7 +176,7 @@
         <p>Three datasets were generated using <strong>Stable-Baselines3 (PPO)</strong> to simulate different levels of expertise:</p>
         <ul>
             <li><strong>Expert:</strong> PPO agent trained to convergence (500,000 steps, average reward > 200).</li>
-            <li><strong>Medium:</strong> A snapshot of the PPO agent's behavior at only 50,000 steps (early learning phase).</li>
+            <li><strong>Medium:</strong> PPO agent trained strictly until its rolling average reward reached exactly 20.0, meticulously capturing true intermediate proficiency.</li>
             <li><strong>Random:</strong> Actions sampled uniformly from the discrete action space.</li>
         </ul>
         <p>Each dataset contains exactly <strong>50,000 transitions</strong> (state, action, reward, next state).</p>
@@ -194,7 +194,7 @@
         <h3>4. Evaluation Methodology</h3>
         <p>
             Each trained model was evaluated over <strong>50 test episodes</strong>. Success was defined as a final cumulative reward &ge; 200. 
-            The simulation videos include a <strong>boundary check</strong>: if the agent flies significantly off-screen (e.g., y > 1.2 or |x| > 1.1), the episode is terminated early to keep the visualization focused on the landing area.
+            The simulation videos capture the unadulterated agent behavior exactly as rendered natively by the Gymnasium environment.
         </p>
     </div>
 </section>
@@ -203,9 +203,9 @@
     <h2>Q&A</h2>
     
     <div style="margin-bottom: 20px;">
-        <h3 style="color: #2c3e50;">Q: Why does the Decision Transformer perform so poorly on the Random/Medium datasets? Is it just undertrained?</h3>
+        <h3 style="color: #2c3e50;">Q: Why does the Decision Transformer perform so poorly on the Random dataset? Is it just undertrained?</h3>
         <p><strong>A:</strong> No, it is not undertrained. The training logs confirm that the neural network fully converged. For instance, the cross-entropy loss for the random dataset quickly dropped to <code>1.24</code> and then completely flatlined for tens of thousands of steps. Because LunarLander has 4 discrete actions, a completely random baseline yields a cross-entropy loss of <code>-log(0.25) &approx; 1.386</code>. A loss of 1.24 indicates the model successfully learned whatever faint, predictable correlations existed in the random data, but hit a hard mathematical ceiling and converged to its maximum predictive capacity.</p>
-        <p>The failure is actually a fundamental limitation of the algorithmic concept. Decision Transformers formulate RL as a sequence modeling task (like predicting the next word), and condition actions on a "target return". If you ask DT to achieve a target return of <code>200.0</code> when the highest reward ever seen in a random dataset was <code>-50</code>, it is forced to extrapolate entirely out-of-distribution. It simply cannot invent sequences it hasn't seen.</p>
+        <p>The total failure is actually a fundamental limitation of the algorithmic concept. Decision Transformers formulate RL as a sequence modeling task, meaning they condition their actions on a predefined "target return". If you ask DT to achieve a target return of <code>200.0</code> when the highest reward ever seen in a random dataset was <code>-50</code>, it is forced to extrapolate entirely out-of-distribution without any logical paths to pull from. However, when we queried it realistically (like dynamically assigning a target return of <code>40.0</code> to the True Medium model), the DT faithfully reconstructed decent trajectories and scored a massive improvement at -64.8!</p>
     </div>
 
     <div>
