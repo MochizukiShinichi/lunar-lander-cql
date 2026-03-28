@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lunar Lander Offline RL: Experiment Summary</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 1000px; margin: 0 auto; padding: 20px; background-color: #f4f7f6; }
+        header { text-align: center; margin-bottom: 40px; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { margin: 0; color: #2c3e50; }
+        h2 { border-bottom: 2px solid #3498db; padding-bottom: 10px; color: #2980b9; margin-top: 40px; }
+        h3 { color: #2c3e50; margin-top: 30px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 30px;}
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #3498db; color: white; }
+        tr:hover { background-color: #f1f1f1; }
+        code { background-color: #eef; padding: 2px 4px; border-radius: 4px; }
+        ul, ol { margin-left: 20px; }
+        footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; color: #7f8c8d; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Lunar Lander Offline RL: Experiment Summary</h1>
+    <p>A comprehensive overview of experimental phases, approaches, and detailed performance metrics.</p>
+</header>
+
+<section>
+    <h2>Introduction</h2>
+    <p>
+        This document provides a detailed summary of the experimental journey undertaken in the Lunar Lander Offline Reinforcement Learning project. We outline the evolution of our approaches, the introduction of new algorithms, and the impact of various optimization techniques. The focus is on the "what" and "why" behind each experimental phase, accompanied by detailed metric tables to quantify the outcomes.
+    </p>
+
+    <h2>Experimental Phases and Approaches</h2>
+
+    <h3>Phase 1: Initial CQL Baseline Evaluation</h3>
+    <p>
+        The project began by establishing a foundational understanding of how a value-based Offline RL agent, specifically Conservative Q-Learning (CQL), performs when trained on demonstration data of varying quality. Three distinct datasets—Expert, Medium, and Random—were generated, each containing 50,000 transitions, to simulate different levels of agent expertise. These datasets were created using PPO from `stable_baselines3`. The CQL models, based on `DiscreteCQLConfig` with an MLP architecture, were trained for 30,000 gradient steps. This phase aimed to quantify CQL's robustness and learning capabilities across this spectrum of data.
+    </p>
+    <h4>Metrics (CQL Initial Baseline):</h4>
+    <table>
+        <thead>
+            <tr>
+                <th>Data Quality</th>
+                <th>Dataset Mean Reward</th>
+                <th>CQL Model Mean Reward</th>
+                <th>Success Rate (%)</th>
+                <th>Crash Rate (%)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Expert</td>
+                <td>198.95</td>
+                <td>203.93</td>
+                <td>74.0%</td>
+                <td>0.0%</td>
+            </tr>
+            <tr>
+                <td>Medium</td>
+                <td>-175.36</td>
+                <td>-181.63</td>
+                <td>0.0%</td>
+                <td>86.0%</td>
+            </tr>
+            <tr>
+                <td>Random</td>
+                <td>-178.19</td>
+                <td>-135.40</td>
+                <td>0.0%</td>
+                <td>98.0%</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>Phase 2: Decision Transformer (DT) Integration and Initial Comparison</h3>
+    <p>
+        Building upon the CQL baseline, the Decision Transformer (DT) algorithm was introduced. DT, a sequence-modeling approach to Offline RL, offered a different paradigm for learning from demonstrations. This phase aimed to conduct a direct comparative analysis between DT and CQL. To meet DT's data requirements, the size of all datasets was significantly increased to 500,000 transitions. The DT models utilized a `context_size` of <strong>20</strong> and initial evaluations were conducted with a fixed high `target_return` of <strong>200.0</strong>, which served to highlight its sensitivity to the quality of the provided target. Training of DT models was performed on a GPU, leveraging CUDA for accelerated computation.
+    </p>
+    <h4>Metrics (CQL vs. DT Initial Comparison):</h4>
+    <table>
+        <thead>
+            <tr>
+                <th>Data Quality</th>
+                <th>Dataset Mean Reward</th>
+                <th>CQL Mean Reward</th>
+                <th>DT Mean Reward</th>
+                <th>CQL Success Rate (%)</th>
+                <th>DT Success Rate (%)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Expert</td>
+                <td>198.95</td>
+                <td>203.93</td>
+                <td>213.4</td>
+                <td>74.0%</td>
+                <td>84.0%</td>
+            </tr>
+            <tr>
+                <td>Medium</td>
+                <td>-175.36</td>
+                <td>-181.63</td>
+                <td>-295.9</td>
+                <td>0.0%</td>
+                <td>0.0%</td>
+            </tr>
+            <tr>
+                <td>Random</td>
+                <td>-178.19</td>
+                <td>-135.40</td>
+                <td>-136.5</td>
+                <td>0.0%</td>
+                <td>0.0%</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>Phase 3: Refined Medium Data and Dynamic DT Target Returns</h3>
+    <p>
+        A critical insight from Phase 2 was the significant impact of the target return on DT's performance, especially with sub-optimal data. This phase focused on refining the dataset generation, particularly for the "Medium" dataset. This "True Medium" dataset was created by training a PPO agent until its rolling average reward reached exactly <strong>20.0</strong>, ensuring a precisely controlled intermediate level of expertise. Most importantly, DT evaluations were adjusted to use dynamic target returns, aligning the requested return with what was realistically achievable from each dataset's quality: <strong>200.0</strong> for Expert, <strong>40.0</strong> for Medium, and <strong>-100.0</strong> for Random datasets. This change provided a more accurate and fair assessment of DT's capabilities across different data qualities.
+    </p>
+    <h4>Metrics (CQL vs. DT with Dynamic Target Returns):</h4>
+    <table>
+        <thead>
+            <tr>
+                <th>Data Quality</th>
+                <th>Dataset Mean Reward</th>
+                <th>CQL Mean Reward</th>
+                <th>DT Mean Reward</th>
+                <th>CQL Success Rate (%)</th>
+                <th>DT Success Rate (%)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Expert</td>
+                <td>198.95</td>
+                <td>203.93</td>
+                <td>243.6</td>
+                <td>74.0%</td>
+                <td>90.0%</td>
+            </tr>
+            <tr>
+                <td>Medium</td>
+                <td>-175.36</td>
+                <td>-181.63</td>
+                <td>-64.8</td>
+                <td>0.0%</td>
+                <td>0.0%</td>
+            </tr>
+            <tr>
+                <td>Random</td>
+                <td>-178.19</td>
+                <td>-135.40</td>
+                <td>-481.5</td>
+                <td>0.0%</td>
+                <td>0.0%</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>Phase 4: Optimized Decision Transformer Performance</h3>
+    <p>
+        The final experimental phase was dedicated to optimizing the Decision Transformer's performance through targeted hyperparameter tuning and the application of established best practices. Key enhancements included expanding the DT's `context_size` from <strong>20</strong> to <strong>50</strong>, allowing the model to process a longer history of interactions. Additionally, `reward_scaler="standard"` was applied to normalize rewards, stabilizing training. Further fine-tuning involved adjusting `batch_size` to <strong>64</strong> and `learning_rate` to <strong>1e-4</strong>. These optimizations aimed to maximize the DT's learning efficiency and overall performance, resulting in the most robust metrics for the algorithm.
+    </p>
+    <h4>Metrics (Final Optimized CQL vs. DT):</h4>
+    <table>
+        <thead>
+            <tr>
+                <th>Data Quality</th>
+                <th>Dataset Mean Reward</th>
+                <th>CQL Mean Reward</th>
+                <th>DT Mean Reward</th>
+                <th>CQL Success Rate (%)</th>
+                <th>DT Success Rate (%)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Expert</td>
+                <td>198.95</td>
+                <td>203.93</td>
+                <td>244.2</td>
+                <td>74.0%</td>
+                <td>92.0%</td>
+            </tr>
+            <tr>
+                <td>Medium</td>
+                <td>-175.36</td>
+                <td>-181.63</td>
+                <td>-61.3</td>
+                <td>0.0%</td>
+                <td>0.0%</td>
+            </tr>
+            <tr>
+                <td>Random</td>
+                <td>-178.19</td>
+                <td>-135.40</td>
+                <td>-462.1</td>
+                <td>0.0%</td>
+                <td>0.0%</td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<footer>
+    <p style="text-align: center; color: #7f8c8d; font-size: 0.9em;">Generated on March 26, 2026</p>
+</footer>
+
+</body>
+</html>

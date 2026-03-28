@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historical Comparison of Experiment Iterations</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 1000px; margin: 0 auto; padding: 20px; background-color: #f4f7f6; }
+        header { text-align: center; margin-bottom: 40px; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { margin: 0; color: #2c3e50; }
+        section { background: #fff; padding: 25px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        h2 { border-bottom: 2px solid #3498db; padding-bottom: 10px; color: #2980b9; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #3498db; color: white; }
+        tr:hover { background-color: #f1f1f1; }
+        footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; color: #7f8c8d; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Historical Comparison of Experiment Iterations</h1>
+</header>
+
+<section>
+    <p>This document summarizes the evolution of experimental approaches and results in the Lunar Lander Offline RL project, as reflected in the commit history.</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Commit Hash</th>
+                <th>Date (Approx.)</th>
+                <th>Key Changes / Experiment Iteration</th>
+                <th>Impact / Results Highlight</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>5f0a70e</code></td>
+                <td>Initial</td>
+                <td><strong>Initial Report Baseline:</strong> Setup for "Lunar Lander Offline RL Data Comparison"</td>
+                <td>Established initial reporting structure and comparison goals.</td>
+            </tr>
+            <tr>
+                <td><code>9cd93f8</code></td>
+                <td>Subsequent</td>
+                <td><strong>Reporting Refinement:</strong> Added missing chart, cleaned video paths.</td>
+                <td>Improved visualization and data presentation.</td>
+            </tr>
+            <tr>
+                <td><code>16e4fb5</code></td>
+                <td>Subsequent</td>
+                <td><strong>Detailed Setup:</strong> Added Appendix with experiment setup details.</td>
+                <td>Enhanced reproducibility and understanding of experimental conditions.</td>
+            </tr>
+            <tr>
+                <td><code>9a0fca0</code></td>
+                <td>Subsequent</td>
+                <td><strong>Decision Transformer Integration:</strong> Implemented DT with GPU training and side-by-side rendering.</td>
+                <td>Introduction of a new, advanced RL approach; enabled visual comparison of agent performance.</td>
+            </tr>
+            <tr>
+                <td><code>440368c</code></td>
+                <td>Subsequent</td>
+                <td><strong>Medium Model Results Update:</strong> Reflected true medium model results across datasets.</td>
+                <td>Provided updated metrics for medium-sized models, indicating performance on specific data scales.</td>
+            </tr>
+            <tr>
+                <td><code>6ae9d97</code></td>
+                <td>Subsequent</td>
+                <td><strong>Medium Dataset Metrics Refinement:</strong> Rewrote report to frame true Medium dataset metrics appropriately.</td>
+                <td>Improved interpretation and presentation of medium dataset performance.</td>
+            </tr>
+            <tr>
+                <td><code>e9c7c2c</code></td>
+                <td>Latest</td>
+                <td><strong>Normalized DT Metrics Improvement:</strong> Updated report to reflect improved normalized Decision Transformer metrics.</td>
+                <td>Showcased the latest performance enhancements for Decision Transformer models, particularly with normalization.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>Summary of Evolution</h2>
+    <p>
+        The project began with an initial report setting the stage for offline RL data comparison. Early iterations focused on refining the reporting and visualization infrastructure. A significant pivot occurred with the integration of the <strong>Decision Transformer</strong> model, moving towards more advanced architectural approaches. Subsequent efforts concentrated on evaluating and refining the Decision Transformer's performance across different datasets, particularly the "medium" dataset, and improving the presentation and interpretation of its metrics, culminating in improved normalized metrics. The codebase reflects a progression from foundational reporting to the implementation and optimization of state-of-the-art offline reinforcement learning algorithms.
+    </p>
+</section>
+
+<footer>
+    <p>&copy; 2026 Lunar Lander Offline RL Project</p>
+</footer>
+
+</body>
+</html>
