@@ -205,6 +205,63 @@
             </tr>
         </tbody>
     </table>
+
+    <h3>Phase 5: Intermediate Data Level Evaluation</h3>
+    <p>
+        To bridge the gap between "Expert" and "Medium" data, a fourth data quality level—<strong>Intermediate</strong>—was introduced. A PPO agent was trained until its rolling average reward reached exactly <strong>100.0</strong>, capturing a proficiency level where the agent consistently survives but often misses the landing pad. This dataset provided the Decision Transformer with its first encounter of successful "scripts" buried within sub-optimal noise. DT was evaluated with a dynamic <code>target_return</code> of <strong>150.0</strong> to test its ability to exceed the teacher's average performance.
+    </p>
+    <h4>Metrics (Final 4-Level Comparison):</h4>
+    <table>
+        <thead>
+            <tr>
+                <th>Data Quality</th>
+                <th>Dataset Mean Reward</th>
+                <th>Dataset Success Rate (%)</th>
+                <th>CQL Mean Reward</th>
+                <th>DT Mean Reward</th>
+                <th>CQL Success Rate (%)</th>
+                <th>DT Success Rate (%)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Expert</td>
+                <td>237.74</td>
+                <td>87.8%</td>
+                <td>203.93</td>
+                <td>233.40</td>
+                <td>74.0%</td>
+                <td>86.0%</td>
+            </tr>
+            <tr>
+                <td>Intermediate</td>
+                <td>105.55</td>
+                <td>3.7%</td>
+                <td>86.64</td>
+                <td>103.49</td>
+                <td>2.0%</td>
+                <td>4.0%</td>
+            </tr>
+            <tr>
+                <td>Medium</td>
+                <td>-63.96</td>
+                <td>0.0%</td>
+                <td>-49.98</td>
+                <td>-74.71</td>
+                <td>0.0%</td>
+                <td>0.0%</td>
+            </tr>
+            <tr>
+                <td>Random</td>
+                <td>-181.69</td>
+                <td>0.0%</td>
+                <td>-135.40</td>
+                <td>-474.10</td>
+                <td>0.0%</td>
+                <td>0.0%</td>
+            </tr>
+        </tbody>
+    </table>
 </section>
 
 <footer>

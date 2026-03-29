@@ -7,26 +7,61 @@ from d3rlpy.algos import DiscreteCQLConfig, DiscreteDecisionTransformerConfig, S
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
+from gymnasium.wrappers import RecordVideo
 
 # Monkeypatch torch.load for compatibility with PyTorch 2.6+ default weights_only=True
+import torch
 original_torch_load = torch.load
 def patched_torch_load(*args, **kwargs):
-    if 'weights_only' not in kwargs:
-        kwargs['weights_only'] = False
+    kwargs['weights_only'] = False
     return original_torch_load(*args, **kwargs)
 torch.load = patched_torch_load
 
-def evaluate_model(model_path, env_id, algo_type="cql", n_episodes=50):
-    print(f"Evaluating {model_path} ({algo_type})...")
+def evaluate_model(model_path, env_id, algo_type="cql", n_episodes=50, label="Expert"):
+    print(f"Evaluating {model_path} ({algo_type}) for {label}...")
     env = gym.make(env_id)
     
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
-    if algo_type == "dt":
-        dt = d3rlpy.load_learnable(model_path, device=device)
-        tr = 200.0 if "expert" in model_path else (40.0 if "medium" in model_path else -100.0)
-        wrapper = StatefulTransformerWrapper(dt, target_return=tr, action_sampler=GreedyTransformerActionSampler())
-    else:
-        cql = d3rlpy.load_learnable(model_path, device=device)
+    try:
+        if algo_type == "dt":
+            # Try loading with different context sizes (Phase 4: 50, Phase 2: 20)
+            model = None
+            for cs in [50, 20]:
+                try:
+                    config = DiscreteDecisionTransformerConfig(
+                        context_size=cs, 
+                        max_timestep=1000,
+                        batch_size=64,
+                        learning_rate=1e-4
+                    )
+                    temp_model = config.create(device=device)
+                    temp_model.build_with_env(env)
+                    temp_model.load_model(model_path)
+                    model = temp_model
+                    print(f"Successfully loaded DT with context_size={cs}")
+                    break
+                except Exception:
+                    continue
+            
+            if model is None:
+                raise ValueError("Could not load DT model with any supported context_size")
+            
+            # Dynamic target return
+            if label == "Expert": tr = 200.0
+            elif label == "Intermediate": tr = 150.0
+            elif label == "Medium": tr = 40.0
+            else: tr = -100.0
+            
+            wrapper = StatefulTransformerWrapper(model, target_return=tr, action_sampler=GreedyTransformerActionSampler())
+        else:
+            config = DiscreteCQLConfig()
+            model = config.create(device=device)
+            model.build_with_env(env)
+            model.load_model(model_path)
+    except Exception as e:
+        print(f"CRITICAL ERROR loading {model_path}: {e}")
+        env.close()
+        return np.nan, np.nan, np.nan, np.nan
     
     rewards = []
     successes = 0
@@ -36,7 +71,7 @@ def evaluate_model(model_path, env_id, algo_type="cql", n_episodes=50):
         obs, info = env.reset()
         done = False
         ep_reward = 0
-        reward = 0.0  # Initialize reward for the first prediction step
+        reward = 0.0
         
         if algo_type == "dt":
             wrapper.reset()
@@ -45,7 +80,7 @@ def evaluate_model(model_path, env_id, algo_type="cql", n_episodes=50):
             if algo_type == "dt":
                 action = wrapper.predict(obs, reward)
             else:
-                action = cql.predict(np.expand_dims(obs, axis=0))[0]
+                action = model.predict(np.expand_dims(obs, axis=0))[0]
             obs, reward, terminated, truncated, info = env.step(action)
             ep_reward += reward
             done = terminated or truncated
@@ -53,40 +88,79 @@ def evaluate_model(model_path, env_id, algo_type="cql", n_episodes=50):
         rewards.append(ep_reward)
         if ep_reward >= 200:
             successes += 1
-        if ep_reward <= -100: # Simple heuristic for crash, can be more precise if needed
+        if ep_reward <= -100:
             crashes += 1
             
     env.close()
     return np.mean(rewards), np.std(rewards), (successes / n_episodes) * 100, (crashes / n_episodes) * 100
 
+import h5py
+
 def get_dataset_stats(dataset_path):
+    if not os.path.exists(dataset_path):
+        return np.nan, np.nan
     print(f"Calculating stats for {dataset_path}...")
-    from d3rlpy.dataset import ReplayBuffer, InfiniteBuffer
-    with open(dataset_path, "rb") as f:
-        dataset = ReplayBuffer.load(f, InfiniteBuffer())
     
-    returns = []
-    for episode in dataset.episodes:
-        returns.append(np.sum(episode.rewards))
-    
-    return np.mean(returns)
+    try:
+        # Try d3rlpy 2.x load_v1 first
+        dataset = d3rlpy.dataset.load_v1(dataset_path)
+        episode_rewards = []
+        current_reward = 0
+        rewards = dataset.rewards
+        terminals = dataset.terminals
+        for i in range(len(rewards)):
+            current_reward += rewards[i]
+            if terminals[i]:
+                episode_rewards.append(current_reward)
+                current_reward = 0
+        
+        successes = sum(1 for r in episode_rewards if r >= 200)
+        success_rate = (successes / len(episode_rewards)) * 100 if episode_rewards else 0
+        return np.mean(episode_rewards), success_rate
+    except Exception:
+        # Fallback to custom HDF5 format (observations_0, rewards_0, etc)
+        print("Using custom HDF5 loader fallback...")
+        with h5py.File(dataset_path, 'r') as f:
+            reward_keys = [k for f_key in f.keys() if (k := f_key) and k.startswith('rewards_')]
+            if not reward_keys:
+                return np.nan, np.nan
+            
+            episode_returns = []
+            for k in reward_keys:
+                episode_returns.append(np.sum(f[k][()]))
+            
+            successes = sum(1 for r in episode_returns if r >= 200)
+            success_rate = (successes / len(episode_returns)) * 100 if episode_returns else 0
+            return np.mean(episode_returns), success_rate
 
 def main():
     env_id = "LunarLander-v3"
     results = []
-    comparisons = [
-        ("dt_expert.d3", "Expert", 198.95, 203.93, 74.0, 0.0),
-        ("dt_medium.d3", "Medium", -175.36, -181.63, 0.0, 86.0),
-        ("dt_random.d3", "Random", -178.19, -135.40, 0.0, 98.0)
+    
+    levels = [
+        ("expert", "Expert"),
+        ("intermediate", "Intermediate"),
+        ("medium", "Medium"),
+        ("random", "Random")
     ]
     
-    for dt_path, label, ds_mean, cql_mean, cql_succ, cql_crash in comparisons:
-        # Evaluate DT if it exists
-        if os.path.exists(dt_path):
-            dt_mean, dt_std, dt_succ, dt_crash = evaluate_model(dt_path, env_id, "dt")
+    for suffix, label in levels:
+        ds_path = f"{suffix}_dataset.h5"
+        ds_mean = get_dataset_stats(ds_path)
+        
+        # Evaluate CQL
+        cql_path = f"cql_{suffix}.d3"
+        if os.path.exists(cql_path):
+            cql_mean, _, cql_succ, _ = evaluate_model(cql_path, env_id, "cql", label=label)
         else:
-            print(f"Skipping DT evaluation for {label} - {dt_path} not found.")
-            dt_mean, dt_std, dt_succ, dt_crash = (np.nan, np.nan, np.nan, np.nan)
+            cql_mean, cql_succ = np.nan, np.nan
+            
+        # Evaluate DT
+        dt_path = f"dt_{suffix}.d3"
+        if os.path.exists(dt_path):
+            dt_mean, _, dt_succ, _ = evaluate_model(dt_path, env_id, "dt", label=label)
+        else:
+            dt_mean, dt_succ = np.nan, np.nan
             
         results.append({
             "Label": label,
@@ -97,19 +171,15 @@ def main():
             "DT Success (%)": dt_succ
         })
             
-    if not results:
-        print("No results to visualize!")
-        return
-        
     df = pd.DataFrame(results)
     print("\nEvaluation Results:")
     print(df.to_string(index=False))
     df.to_csv("performance_results.csv", index=False)
     
     # Visualization
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(12, 7))
     x = np.arange(len(df['Label']))
-    width = 0.35
+    width = 0.25
     
     plt.bar(x - width, df['Dataset Mean'], width, label='Dataset Mean (Demo)', alpha=0.7)
     plt.bar(x, df['CQL Mean'], width, label='CQL Mean', alpha=0.7)
@@ -117,7 +187,7 @@ def main():
     
     plt.xlabel('Data Quality Level')
     plt.ylabel('Mean Cumulative Reward')
-    plt.title('Performance Comparison: Dataset vs. CQL vs. Decision Transformer')
+    plt.title('Performance Comparison (with Intermediate Level)')
     plt.xticks(x, df['Label'])
     plt.legend()
     plt.grid(axis='y', linestyle='--', alpha=0.7)
@@ -126,24 +196,54 @@ def main():
     plt.savefig("performance_comparison.png")
     print("\nPlot saved: performance_comparison.png")
 
-    # Record simulation videos for the best models (Expert and Medium)
-    from gymnasium.wrappers import RecordVideo
-    for label in ["Expert", "Medium", "Random"]:
+    # Record videos
+    for suffix, label in levels:
         for algo, prefix in [("cql", "cql_"), ("dt", "dt_")]:
-            model_file = f"{prefix}{label.lower()}.d3"
+            model_file = f"{prefix}{suffix}.d3"
             if os.path.exists(model_file):
                 print(f"Recording video for {algo.upper()} {label} agent...")
                 env = gym.make(env_id, render_mode="rgb_array")
                 device = "cuda:0" if torch.cuda.is_available() else "cpu"
                 
-                if algo == "dt":
-                    model = d3rlpy.load_learnable(model_file, device=device)
-                    tr = 200.0 if label == "Expert" else (40.0 if label == "Medium" else -100.0)
-                    wrapper = StatefulTransformerWrapper(model, target_return=tr, action_sampler=GreedyTransformerActionSampler())
-                else:
-                    model = d3rlpy.load_learnable(model_file, device=device)
+                try:
+                    if algo == "dt":
+                        model = None
+                        for cs in [50, 20]:
+                            try:
+                                config = DiscreteDecisionTransformerConfig(
+                                    context_size=cs, 
+                                    max_timestep=1000,
+                                    batch_size=64,
+                                    learning_rate=1e-4
+                                )
+                                temp_model = config.create(device=device)
+                                temp_model.build_with_env(env)
+                                temp_model.load_model(model_file)
+                                model = temp_model
+                                print(f"Successfully loaded DT for video with context_size={cs}")
+                                break
+                            except Exception:
+                                continue
+                        
+                        if model is None:
+                            raise ValueError(f"Could not load DT model {model_file} for video")
+                        
+                        if label == "Expert": tr = 200.0
+                        elif label == "Intermediate": tr = 150.0
+                        elif label == "Medium": tr = 40.0
+                        else: tr = -100.0
+                        wrapper = StatefulTransformerWrapper(model, target_return=tr, action_sampler=GreedyTransformerActionSampler())
+                    else:
+                        config = DiscreteCQLConfig()
+                        model = config.create(device=device)
+                        model.build_with_env(env)
+                        model.load_model(model_file)
+                except Exception as e:
+                    print(f"Error loading model for video {model_file}: {e}")
+                    env.close()
+                    continue
                 
-                env = RecordVideo(env, video_folder="./videos", name_prefix=f"{prefix}{label.lower()}")
+                env = RecordVideo(env, video_folder="./videos", name_prefix=f"{prefix}{suffix}")
                 
                 obs, info = env.reset()
                 done = False
@@ -157,12 +257,7 @@ def main():
                     else:
                         action = model.predict(np.expand_dims(obs, axis=0))[0]
                     obs, reward, terminated, truncated, info = env.step(action)
-                    
-                    # Boundary check: Terminate if rocket goes too far off-screen
-                    # obs[0] is x-pos, obs[1] is y-pos
-                    off_screen = False
-                    
-                    done = terminated or truncated or off_screen or step_count > 400
+                    done = terminated or truncated or step_count > 1000
                     step_count += 1
                 env.close()
 
